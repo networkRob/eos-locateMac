@@ -159,6 +159,7 @@ def main(mac_to_search):
         search_count += 1
         for r1 in search_devices:
             if r1 not in checked_switches:
+                print('Checking %s'%r1)
                 checked_switches.append(r1)
                 remote_switch = SwitchCon(r1,switch_username,switch_password)
                 query_switch(remote_switch,new_mac_search)
