@@ -40,7 +40,8 @@ INSTALLATION
 1. Copy the script to /mnt/flash on any switches that the command can be initiated from
 2. Change values of switch_username and switch_password to valid account credentials for the switches
 3. Create an EOS alias command
-
+    switch(config)# alias findmac bash /mnt/flash/locateMac.py %1
+    
 CAVEATS
 1. Only finds and returns a match if the port the MAC address is on does not participate in LLDP
 """
