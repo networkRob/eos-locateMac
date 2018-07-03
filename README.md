@@ -13,7 +13,13 @@ Each device within the environment will need to have eAPI access configured.  Th
     (config)# no shut
     (config)# end
 
+On each device that will have this script ran from, within EOS, enter the following commands:
 
-### Documentation to Complete:
-1. Add in the setup necessary to create an alias that will take a MAC string
-2. Additional documentation based off the completion of the script
+    # config
+    (config)# alias findmac bash /mnt/flash/locateMac.py %1
+    (config)# end
+    # write
+
+### Future Enhancements
+1. Search on any portion of the MAC address
+2. How to handle multiple matches based on partial MAC address queries
