@@ -81,18 +81,22 @@ class SwitchCon:
         self.mac_entry = []
         if self.ip == 'localhost':
             self._get_localhost_ip()
+            
     def _get_localhost_ip(self):
         for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
             if 'unix' not in r1:
                 checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
+
     def _create_switch(self):
         "This command will create a jsonrpclib Server object for the switch"
         target_switch = Server('https://%s:%s@%s/command-api'%(self.username,self.password,self.ip))
         return(target_switch)
+
     def run_commands(self,commands):
         "This command will send the commands to the targeted switch and return the results"
         switch_response = self.server.runCmds(1,commands)
         return(switch_response)
+
     def add_mac(self,MAC):
         add_code = True
         for r1 in self.mac_entry:
@@ -100,10 +104,13 @@ class SwitchCon:
                 add_code = False
         if add_code:
             self.mac_entry.append(MAC)
+
     def _get_system_mac(self):
         return(self.run_commands(['show version'])[0]['systemMacAddress'])
+
     def _get_hostname(self):
         return(self.run_commands(['show hostname'])[0]['hostname'])
+
     def _add_lldp_neighbors(self):
         dict_lldp = {}
         lldp_results = self.run_commands(['show lldp neighbors detail'])[0]['lldpNeighbors']
@@ -112,6 +119,7 @@ class SwitchCon:
                 l_base = lldp_results[r1]['lldpNeighborInfo'][0]
                 dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router']}
         return(dict_lldp)
+
     def get_lldp_br(self):
         "Returns a dictionary of LLDP neighbors that are bridges and routers"
         tmp_dict = {}
@@ -291,7 +299,6 @@ def main(mac_to_search):
     query_switch(current_switch,new_mac_search)
     #Iterate through mac entries found
     search_results(current_switch)
-    print('devices to search %s' %len(search_devices))
     if not check_all_mac_status(all_macs):
         for r1 in search_devices:
             if r1 not in checked_switches:
@@ -300,7 +307,6 @@ def main(mac_to_search):
                 all_switches.append(remote_switch)
                 query_switch(remote_switch,new_mac_search)
                 search_results(remote_switch)
-                print('devices to search %s' %len(search_devices))
     print_output(all_macs)
 
 #==========================================
