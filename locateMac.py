@@ -48,8 +48,7 @@ CAVEATS
 __author__ = 'rmartin'
 __version__ = '1.1'
 from jsonrpclib import Server
-import sys
-from pprint import pprint as pp
+from sys import argv
 
 dict_nodes = {}
 dict_all_mac_matches = {}
@@ -239,7 +238,7 @@ def main(mac_to_search):
 #==========================================
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        main(sys.argv[1])
+    if len(argv) > 1:
+        main(argv[1])
     else:
         print('MAC Address not provided')
