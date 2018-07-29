@@ -70,33 +70,40 @@ class MACHOSTS:
         self.vlan = vlan
 
 class SwitchCon:
-    def __init__(self,ip,s_username,s_password):
-        self.ip = ip
-        self.username = s_username
-        self.password = s_password
-        self.server = self._create_switch()
-        self.hostname = self._get_hostname()
-        self.lldp_neighbors = self._add_lldp_neighbors()
-        self.system_mac = self._get_system_mac()
-        self.mac_entry = []
-        if self.ip == 'localhost':
-            self._get_localhost_ip()
-            
+    def __init__(self,ip,s_username,s_password,s_vend=False):
+        if s_vend:
+            self.ip = ip
+            self.username = s_username
+            self.password = s_password
+            self.mac_entry = []
+            self.server = self._create_switch()
+            try:
+                self.hostname = self._get_hostname()
+                self.STATUS = True
+            except:
+                self.STATUS = False
+            if self.STATUS:
+                self.lldp_neighbors = self._add_lldp_neighbors()
+                self.system_mac = self._get_system_mac()
+                self.lldp_br = self.get_lldp_br()
+                if self.ip == 'localhost':
+                    self._get_localhost_ip()  
+            else:
+                print('\nSwitch does not have eAPI enabled\n\n')
+        else:
+            print('\nDevice %s is not an Arista switch\n\n'%ip)
     def _get_localhost_ip(self):
         for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
             if 'unix' not in r1:
                 checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
-
     def _create_switch(self):
         "This command will create a jsonrpclib Server object for the switch"
         target_switch = Server('https://%s:%s@%s/command-api'%(self.username,self.password,self.ip))
         return(target_switch)
-
     def run_commands(self,commands):
         "This command will send the commands to the targeted switch and return the results"
         switch_response = self.server.runCmds(1,commands)
         return(switch_response)
-
     def add_mac(self,MAC):
         add_code = True
         for r1 in self.mac_entry:
@@ -104,22 +111,22 @@ class SwitchCon:
                 add_code = False
         if add_code:
             self.mac_entry.append(MAC)
-
     def _get_system_mac(self):
         return(self.run_commands(['show version'])[0]['systemMacAddress'])
-
     def _get_hostname(self):
         return(self.run_commands(['show hostname'])[0]['hostname'])
-
     def _add_lldp_neighbors(self):
         dict_lldp = {}
         lldp_results = self.run_commands(['show lldp neighbors detail'])[0]['lldpNeighbors']
         for r1 in lldp_results:
             if lldp_results[r1]['lldpNeighborInfo']:
                 l_base = lldp_results[r1]['lldpNeighborInfo'][0]
-                dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router']}
+                if 'Arista' in l_base['systemDescription']:
+                    a_vend = True
+                else:
+                    a_vend = False
+                dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router'],'Arista':a_vend}
         return(dict_lldp)
-
     def get_lldp_br(self):
         "Returns a dictionary of LLDP neighbors that are bridges and routers"
         tmp_dict = {}
@@ -127,7 +134,6 @@ class SwitchCon:
             if self.lldp_neighbors[r1]['bridge'] and self.lldp_neighbors[r1]['router']:
                 tmp_dict[r1] = self.lldp_neighbors[r1]
         return(tmp_dict)
-            
         
 
 #==========================================
@@ -257,17 +263,17 @@ def search_results(switch_object):
                     elif r2 in switch_object.lldp_neighbors:
                         remote_ip = switch_object.lldp_neighbors[r2]['ip']
                         if remote_ip not in checked_switches and remote_ip not in search_devices:
-                            search_devices.append(switch_object.lldp_neighbors[r2]['ip'])
+                            search_devices.append({switch_object.lldp_neighbors[r2]['ip']:switch_object.lldp_neighbors[r2]['Arista']})
                     else:
                         for r3 in switch_object.lldp_neighbors:
                             remote_ip = switch_object.lldp_neighbors[r3]['ip']
                             if remote_ip not in checked_switches and remote_ip not in search_devices:
-                                search_devices.append(remote_ip)
+                                search_devices.append({remote_ip:switch_object.lldp_neighbors[r2]['Arista']})
     #else:
     for r1 in switch_object.lldp_neighbors:
         remote_ip = switch_object.lldp_neighbors[r1]['ip']
         if remote_ip not in checked_switches and remote_ip not in search_devices:
-            search_devices.append(remote_ip)
+            search_devices.append({remote_ip:switch_object.lldp_neighbors[r1]['Arista']})
     for r1 in all_macs:
         if not r1.status:
             check_system = check_system_mac(r1.mac)
@@ -294,16 +300,18 @@ def main(mac_to_search):
         new_mac_search = mac_to_search
     else:
         new_mac_search = format_MAC(mac_to_search)
-    current_switch = SwitchCon('localhost',switch_username,switch_password)
+    current_switch = SwitchCon('localhost',switch_username,switch_password,s_vend=True)
     all_switches.append(current_switch)
     query_switch(current_switch,new_mac_search)
     #Iterate through mac entries found
     search_results(current_switch)
     if not check_all_mac_status(all_macs):
         for r1 in search_devices:
-            if r1 not in checked_switches:
-                checked_switches.append(r1)
-                remote_switch = SwitchCon(r1,switch_username,switch_password)
+            rem_ip = r1.keys()[0]
+            if rem_ip not in checked_switches:
+                checked_switches.append(r1.keys()[0])
+                rem_ven = r1[rem_ip]
+                remote_switch = SwitchCon(rem_ip,switch_username,switch_password,s_vend=rem_ven)
                 all_switches.append(remote_switch)
                 query_switch(remote_switch,new_mac_search)
                 search_results(remote_switch)

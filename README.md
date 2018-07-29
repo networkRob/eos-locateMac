@@ -1,4 +1,6 @@
 # Locate a MAC Address within the environment
+#### Version 2.0
+
 #### Version 1.2
 This script will query the local switch and any remote switches (if necessary) to locate the queried MAC address.  If a match is found, it will report back the Switch, MAC, VLAN, and Interface.
 
