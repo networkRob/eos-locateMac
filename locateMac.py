@@ -269,9 +269,15 @@ def search_results(switch_object):
                         r1.switch = switch_object.hostname
                         r1.interface = r2
                     elif r2 in switch_object.lldp_neighbors:
-                        remote_ip = switch_object.lldp_neighbors[r2]['ip']
-                        if remote_ip not in checked_switches and remote_ip not in search_devices:
-                            search_devices.append({switch_object.lldp_neighbors[r2]['ip']:switch_object.lldp_neighbors[r2]['Arista']})
+                        if not switch_object.lldp_neighbors[r2]['Arista']:
+                            print('Non Arista LLDP port')
+                            r1.status = True
+                            r1.switch = switch_object.hostname
+                            r1.interface = r2
+                        else:
+                            remote_ip = switch_object.lldp_neighbors[r2]['ip']
+                            if remote_ip not in checked_switches and remote_ip not in search_devices:
+                                search_devices.append({switch_object.lldp_neighbors[r2]['ip']:switch_object.lldp_neighbors[r2]['Arista']})
                     else:
                         for r3 in switch_object.lldp_neighbors:
                             remote_ip = switch_object.lldp_neighbors[r3]['ip']
