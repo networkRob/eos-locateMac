@@ -46,7 +46,7 @@ CAVEATS
 1. Only finds and returns a match if the port the MAC address is on does not participate in LLDP
 """
 __author__ = 'rmartin'
-__version__ = 1.2
+__version__ = 2.0
 from jsonrpclib import Server
 from sys import argv
 
