@@ -1,9 +1,21 @@
 # Locate a MAC Address within the environment
+#### Version 2.1
+This release adds the below functionality and fixes:
+##### Features
+- Added functionality to query against virtual MAC addresses.
+- If virtual MAC address is queried against, returns all switches with that MAC configured
+- Ability to search on any MAC address length.
+##### Fixes
+- Resolved an issue where MAC search query was case sensitive and wouldn't return results with upper case characters.
+
+
 #### Version 2.0
 In this version, a queried MAC address will return a 'Found' result for ports that have LLDP enabled but are not an Arista switch.
 
+
 #### Version 1.2
 This script will query the local switch and any remote switches (if necessary) to locate the queried MAC address.  If a match is found, it will report back the Switch, MAC, VLAN, and Interface.
+
 
 ### Setup
 This script will need to be copied to any switch that this command will be sourced from.  Does not need to be copied on any remote switches that will be queried.
