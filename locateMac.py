@@ -46,7 +46,7 @@ CAVEATS
 1. Only finds and returns a match if the port the MAC address is on does not participate in LLDP
 """
 __author__ = 'rmartin'
-__version__ = 2.0
+__version__ = 2.1
 from jsonrpclib import Server
 from sys import argv
 
@@ -62,6 +62,7 @@ all_switches = []
 #==========================================
 
 class MACHOSTS:
+    "Object created for each MAC address found that matches the queried string"
     def __init__(self,mac,vlan,switch,intf):
         self.mac = mac
         self.status = False
@@ -70,6 +71,7 @@ class MACHOSTS:
         self.vlan = vlan
 
 class SwitchCon:
+    "Object created for each queried switch"
     def __init__(self,ip,s_username,s_password,s_vend=False):
         if s_vend:
             self.ip = ip
@@ -85,6 +87,7 @@ class SwitchCon:
             if self.STATUS:
                 self.lldp_neighbors = self._add_lldp_neighbors()
                 self.system_mac = self._get_system_mac()
+                self.virtual_mac = self._get_virtual_mac()
                 self.lldp_br = self.get_lldp_br()
                 if self.ip == 'localhost':
                     self._get_localhost_ip()  
@@ -94,6 +97,7 @@ class SwitchCon:
             print('\nDevice %s is not an Arista switch\n\n'%ip)
             
     def _get_localhost_ip(self):
+        "Gets the IP addresses configured for management on the localhost, and adds to checked switches object"
         for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
             if 'unix' not in r1:
                 checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
@@ -109,6 +113,7 @@ class SwitchCon:
         return(switch_response)
 
     def add_mac(self,MAC):
+        "Adds queried MAC addresses to Switch's MAC Entry attribute"
         add_code = True
         for r1 in self.mac_entry:
             if MAC.mac == r1.mac:
@@ -117,12 +122,19 @@ class SwitchCon:
             self.mac_entry.append(MAC)
 
     def _get_system_mac(self):
-        return(self.run_commands(['show version'])[0]['systemMacAddress'])
+        "Gets the system MAC address for the switch"
+        return(self.run_commands(['show version'])[0]['systemMacAddress'].replace(":",""))
+    
+    def _get_virtual_mac(self):
+        "Gets the virtual-router MAC address for the switch"
+        return(self.run_commands(['show ip virtual-router'])[0]['virtualMac'].replace(":",""))
 
     def _get_hostname(self):
+        "Gets the hostname for the switch"
         return(self.run_commands(['show hostname'])[0]['hostname'])
 
     def _add_lldp_neighbors(self):
+        "Gets LLDP neighbors on switch and adds to the lldp_neighbors attribute"
         dict_lldp = {}
         lldp_results = self.run_commands(['show lldp neighbors detail'])[0]['lldpNeighbors']
         for r1 in lldp_results:
@@ -153,20 +165,7 @@ class SwitchCon:
 
 def format_MAC(mac_string):
     "Function to format a string with ':'"
-    tmp_mac = mac_string.replace('.','')
-    mac_len = len(tmp_mac)
-    if mac_len == 12:
-        new_mac_search = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" %tuple(tmp_mac)
-    elif mac_len >= 10:
-        new_mac_search = "%s%s:%s%s:%s%s:%s%s:%s%s" %tuple(tmp_mac)
-    elif mac_len >= 8:
-        new_mac_search = "%s%s:%s%s:%s%s:%s%s" %tuple(tmp_mac)
-    elif mac_len >= 6:
-        new_mac_search = "%s%s:%s%s:%s%s" %tuple(tmp_mac)
-    elif mac_len >= 4:
-        new_mac_search = "%s%s:%s%s" %tuple(tmp_mac)
-    elif mac_len >= 2:
-        new_mac_search = "%s%s" %tuple(tmp_mac)
+    new_mac_search = "%s%s:%s%s:%s%s:%s%s:%s%s:%s%s" %tuple(mac_string)
     return(new_mac_search)
 
 
@@ -182,9 +181,9 @@ def print_output(data):
             else:
                 print_vlans += ', %s'%str(r2)
         if r1.status:
-            print('%s\t%s\t%s\t%s\tFound'%(r1.mac,r1.switch,r1.interface,print_vlans)).expandtabs(20)
+            print('%s\t%s\t%s\t%s\tFound'%(format_MAC(r1.mac),r1.switch,r1.interface,print_vlans)).expandtabs(20)
         else:
-            print('%s\t%s\t%s\t%s\tNot Found'%(r1.mac,r1.switch,r1.interface[0],print_vlans)).expandtabs(20)
+            print('%s\t%s\t%s\t%s\tNot Found'%(format_MAC(r1.mac),r1.switch,r1.interface[0],print_vlans)).expandtabs(20)
     print
 
 def check_all_macs(mac):
@@ -210,6 +209,14 @@ def check_system_mac(mac):
     else:
         return None
 
+def check_virtual_mac(mac):
+    "Checks virtual MACs for all queried switches"
+    for r1 in all_switches:
+        if mac == r1.virtual_mac:
+            return r1.hostname
+    else:
+        return False
+
 def query_switch(switch_con,new_mac_search):
     response_current_switch = switch_con.run_commands(['show mac address-table'])
     #Check to see if a response was returned for the 'show mac address-table command'
@@ -217,16 +224,23 @@ def query_switch(switch_con,new_mac_search):
         mac_response = response_current_switch[0]['unicastTable']['tableEntries']
         #Iterate through all unicast table entries
         for r1 in mac_response:
-            if new_mac_search in r1['macAddress']:
+            #Create tmp variable to hold stripped down MAC string
+            resp_mac = r1['macAddress'].replace(':','')
+            #Check if partial query MAC string is in MAC address table entry
+            if new_mac_search in resp_mac:
+                #If Port-Channel, grab intf members for that Port-Channel
                 if 'Port-Channel' in r1['interface']:
                     port_details = switch_con.run_commands(['show interfaces %s'%r1['interface']])
                     if port_details[0]: #Verify a response was generated
                         intf_members = [] #Temp variable to contain interfaces within a port-channel
                         for r2 in port_details[0]['interfaces'][r1['interface']]['memberInterfaces']:
+                            #Grab physical interfaces
                             if 'Peer' not in r2:
                                 intf_members.append(r2)
-                        res_check = check_all_macs(r1['macAddress'])
+                        #Check to see if MAC Address object has been created
+                        res_check = check_all_macs(resp_mac)
                         if res_check:
+                            #If MAC hasn't been located, update to most recent hop
                             if not res_check.status:
                                 res_check.switch = switch_con.hostname
                                 res_check.interface = intf_members
@@ -234,67 +248,94 @@ def query_switch(switch_con,new_mac_search):
                                     res_check.vlan.append(r1['vlanId'])
                             switch_con.add_mac(res_check)
                         else:
-                            current_mac = MACHOSTS(r1['macAddress'],[r1['vlanId']],switch_con.hostname,intf_members)
+                            current_mac = MACHOSTS(resp_mac,[r1['vlanId']],switch_con.hostname,intf_members)
                             all_macs.append(current_mac)
                             switch_con.add_mac(current_mac)
                 else:
-                    res_check = check_all_macs(r1['macAddress'])
+                    #Check to see if MAC Address object has been created
+                    res_check = check_all_macs(resp_mac)
                     if res_check:
+                        #If MAC hasn't been located, update to most recent hop
                         if not res_check.status:
                             res_check.switch = switch_con.hostname
                             res_check.interface = [r1['interface']]
                             if r1['vlanId'] not in res_check.vlan:
                                 res_check.vlan.append(r1['vlanId'])
+                        #Add the MAC object to the switches list of known MAC objects
                         switch_con.add_mac(res_check)
                     else:
-                        current_mac = MACHOSTS(r1['macAddress'],[r1['vlanId']],switch_con.hostname,[r1['interface']])
+                        #If MAC object hasn't been create, create a MAC object
+                        current_mac = MACHOSTS(resp_mac,[r1['vlanId']],switch_con.hostname,[r1['interface']])
+                        #Add MAC to all_macs list and add it to the switches list of known MACs
                         all_macs.append(current_mac)
                         switch_con.add_mac(current_mac)
 
 def search_results(switch_object):
     "Function to take the search results and evaluate the data"
     if switch_object.mac_entry:
+        #Iterate through all MAC objects for queried switch
         for r1 in switch_object.mac_entry:
+            #If MAC object has been found, skip it
             if r1.status:
                 continue
+            #Check if MAC address is the switch's System or Virtual MACs
             check_system = check_system_mac(r1.mac)
+            check_virtual = check_virtual_mac(r1.mac)
             if check_system:
                 r1.status = True
                 r1.switch = check_system
                 r1.interface = 'SYSTEM MAC'
+            elif check_virtual:
+                r1.status = True
+                r1.switch = check_virtual
+                r1.interface = 'VIRTUAL MAC'
             else:
+                #Iterate through switches intfs that has MAC associated with it
                 for r2 in r1.interface:
+                    #If intf for MAC does not have LLDP neighbor, Match Found
                     if r2 not in switch_object.lldp_neighbors:
                         r1.status = True
                         r1.switch = switch_object.hostname
                         r1.interface = r2
+                    #If intf for MAC has an LLDP neighbor
                     elif r2 in switch_object.lldp_neighbors:
+                        #Check if LLDP neighbor is a non-Arista switch, if so, Match Found
                         if not switch_object.lldp_neighbors[r2]['Arista']:
                             print('Non Arista LLDP port')
                             r1.status = True
                             r1.switch = switch_object.hostname
                             r1.interface = r2
+                        #If LLDP neighbor and Arista switch, add the remote switches info to search_devices to be queried
                         else:
                             remote_ip = switch_object.lldp_neighbors[r2]['ip']
                             if remote_ip not in checked_switches and remote_ip not in search_devices:
                                 search_devices.append({switch_object.lldp_neighbors[r2]['ip']:switch_object.lldp_neighbors[r2]['Arista']})
+                    #Catch all to add remote switch info to search_devices to be queried
                     else:
                         for r3 in switch_object.lldp_neighbors:
                             remote_ip = switch_object.lldp_neighbors[r3]['ip']
                             if remote_ip not in checked_switches and remote_ip not in search_devices:
                                 search_devices.append({remote_ip:switch_object.lldp_neighbors[r2]['Arista']})
-    #else:
+    #Iterate through all LLDP neighbors
     for r1 in switch_object.lldp_neighbors:
         remote_ip = switch_object.lldp_neighbors[r1]['ip']
+        #If remote LLDP neighbor hasn't been checked or to be searched, add it to the devices to be searched
         if remote_ip not in checked_switches and remote_ip not in search_devices:
             search_devices.append({remote_ip:switch_object.lldp_neighbors[r1]['Arista']})
+    #check to see if MAC address is in all macs list object
     for r1 in all_macs:
+        #Evaluate if MAC has been located on end intf, if not check if it's a System or Virtual MAC
         if not r1.status:
             check_system = check_system_mac(r1.mac)
+            check_virtual = check_virtual_mac(r1.mac)
             if check_system:
                 r1.status = True
                 r1.switch = check_system
                 r1.interface = 'SYSTEM MAC'
+            if check_virtual:
+                r1.status = True
+                r1.switch = check_virtual
+                r1.interface = 'VIRTUAL MAC'
             
         
 
@@ -308,14 +349,17 @@ def search_results(switch_object):
 def main(mac_to_search):
     "Main script to get started"
     #Reformat MAC search string
+    mac_to_search = mac_to_search.lower()
     if '.' in mac_to_search:
-        new_mac_search = format_MAC(mac_to_search)
+        new_mac_search = mac_to_search.replace(',','')
     elif ':' in mac_to_search:
-        new_mac_search = mac_to_search
+        new_mac_search = mac_to_search.replace(':','')
     else:
-        new_mac_search = format_MAC(mac_to_search)
+        new_mac_search = mac_to_search
+    #Create a Switch Object for the localhost and add it to the all_switches list object
     current_switch = SwitchCon('localhost',switch_username,switch_password,s_vend=True)
     all_switches.append(current_switch)
+    #Perform a query on the switch for MAC query string
     query_switch(current_switch,new_mac_search)
     #Iterate through mac entries found
     search_results(current_switch)
