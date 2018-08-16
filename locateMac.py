@@ -46,7 +46,7 @@ CAVEATS
 1. Only finds and returns a match if the port the MAC address is on does not participate in LLDP
 """
 __author__ = 'rmartin'
-__version__ = 2.1
+__version__ = 2.2
 from jsonrpclib import Server
 from sys import argv
 
@@ -351,7 +351,7 @@ def main(mac_to_search):
     #Reformat MAC search string
     mac_to_search = mac_to_search.lower()
     if '.' in mac_to_search:
-        new_mac_search = mac_to_search.replace(',','')
+        new_mac_search = mac_to_search.replace('.','')
     elif ':' in mac_to_search:
         new_mac_search = mac_to_search.replace(':','')
     else:
