@@ -1,4 +1,6 @@
 # Locate a MAC Address within the environment
+#### Version 2.2
+Corrected an issue where no results would return on a query include a `.`.  
 #### Version 2.1
 This release adds the below functionality and fixes:
 ##### Features
