@@ -43,7 +43,7 @@ INSTALLATION
     switch(config)# alias findmac bash /mnt/flash/locateMac.py %1
 """
 __author__ = 'rmartin'
-__version__ = 2.2
+__version__ = 2.3
 from jsonrpclib import Server
 from sys import argv, exit
 

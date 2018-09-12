@@ -1,4 +1,8 @@
 # Locate a MAC Address within the environment
+#### Version 2.3
+##### Fixes
+- Corrected an issue where the script would fail on LLDP neighbor info that was blank or missing `systemCapabilites` key.
+- Added a check that will stop the script and report back if the local switch does not have eAPI enabled.
 #### Version 2.2
 Corrected an issue where no results would return on a query include a `.`.  
 #### Version 2.1
