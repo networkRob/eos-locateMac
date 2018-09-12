@@ -1,4 +1,8 @@
 # Locate a MAC Address within the environment
+#### Version 2.4
+Cleaned up some un-used code. 
+##### Fixes
+- Corrected an issue that the script tried querying a non-Arista switch.
 #### Version 2.3
 ##### Fixes
 - Corrected an issue where the script would fail on LLDP neighbor info that was blank or missing `systemCapabilites` key.

@@ -43,7 +43,7 @@ INSTALLATION
     switch(config)# alias findmac bash /mnt/flash/locateMac.py %1
 """
 __author__ = 'rmartin'
-__version__ = 2.3
+__version__ = 2.4
 from jsonrpclib import Server
 from sys import argv, exit
 
@@ -70,6 +70,7 @@ class MACHOSTS:
 class SwitchCon:
     "Object created for each queried switch"
     def __init__(self,ip,s_username,s_password,s_vend=False):
+        self.sw_arista = s_vend
         if s_vend:
             self.ip = ip
             self.username = s_username
@@ -87,7 +88,6 @@ class SwitchCon:
                 self.lldp_neighbors = self._add_lldp_neighbors()
                 self.system_mac = self._get_system_mac()
                 self.virtual_mac = self._get_virtual_mac()
-                self.lldp_br = self.get_lldp_br()
                 if self.ip == 'localhost':
                     self._get_localhost_ip()  
             else:
@@ -118,7 +118,7 @@ class SwitchCon:
             if MAC.mac == r1.mac:
                 add_code = False
         if add_code:
-            self.mac_entry.append(MAC)
+            self.mac_entry.append(MAC) 
     
     def _get_system_mac(self):
         "Gets the system MAC address for the switch"
@@ -127,11 +127,11 @@ class SwitchCon:
     def _get_virtual_mac(self):
         "Gets the virtual-router MAC address for the switch"
         return(self.run_commands(['show ip virtual-router'])[0]['virtualMac'].replace(":",""))
-
+    
     def _get_hostname(self):
         "Gets the hostname for the switch"
         return(self.run_commands(['show hostname'])[0]['hostname'])
-
+    
     def _add_lldp_neighbors(self):
         "Gets LLDP neighbors on switch and adds to the lldp_neighbors attribute"
         dict_lldp = {}
@@ -140,22 +140,13 @@ class SwitchCon:
             if lldp_results[r1]['lldpNeighborInfo']:
                 if len(lldp_results[r1]['lldpNeighborInfo']) > 0:
                     l_base = lldp_results[r1]['lldpNeighborInfo'][0]
-                    if 'systemCapabilities' in l_base:
-                        if 'Arista' in l_base['systemDescription']:
-                            a_vend = True
-                        else:
-                            a_vend = False
-                        dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router'],'Arista':a_vend}
+                    if 'Arista' in l_base['systemDescription']:
+                        a_vend = True
+                    else:
+                        a_vend = False
+                    dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'Arista':a_vend}
         return(dict_lldp)
-        
-    def get_lldp_br(self):
-        "Returns a dictionary of LLDP neighbors that are bridges and routers"
-        tmp_dict = {}
-        for r1 in self.lldp_neighbors:
-            if self.lldp_neighbors[r1]['bridge'] and self.lldp_neighbors[r1]['router']:
-                tmp_dict[r1] = self.lldp_neighbors[r1]
-        return(tmp_dict)
-        
+            
 
 #==========================================
 # End Class Declaration
@@ -375,8 +366,9 @@ def main(mac_to_search):
                 rem_ven = r1[rem_ip]
                 remote_switch = SwitchCon(rem_ip,switch_username,switch_password,s_vend=rem_ven)
                 all_switches.append(remote_switch)
-                query_switch(remote_switch,new_mac_search)
-                search_results(remote_switch)
+                if remote_switch.sw_arista:
+                    query_switch(remote_switch,new_mac_search)
+                    search_results(remote_switch)
     print_output(all_macs)
 
 #==========================================
