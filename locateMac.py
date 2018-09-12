@@ -140,11 +140,12 @@ class SwitchCon:
             if lldp_results[r1]['lldpNeighborInfo']:
                 if len(lldp_results[r1]['lldpNeighborInfo']) > 0:
                     l_base = lldp_results[r1]['lldpNeighborInfo'][0]
-                    if 'Arista' in l_base['systemDescription']:
-                        a_vend = True
-                    else:
-                        a_vend = False
-                    dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'Arista':a_vend}
+                    if 'systemDescription'in l_base:
+                        if 'Arista' in l_base['systemDescription']:
+                            a_vend = True
+                        else:
+                            a_vend = False
+                        dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'Arista':a_vend}
         return(dict_lldp)
             
 
