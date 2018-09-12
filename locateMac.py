@@ -45,7 +45,7 @@ INSTALLATION
 __author__ = 'rmartin'
 __version__ = 2.2
 from jsonrpclib import Server
-from sys import argv
+from sys import argv, exit
 
 switch_username = 'arista'
 switch_password = 'arista'
@@ -79,8 +79,10 @@ class SwitchCon:
             try:
                 self.hostname = self._get_hostname()
                 self.STATUS = True
+                self.eapi = True
             except:
                 self.STATUS = False
+                self.eapi = False
             if self.STATUS:
                 self.lldp_neighbors = self._add_lldp_neighbors()
                 self.system_mac = self._get_system_mac()
@@ -89,26 +91,22 @@ class SwitchCon:
                 if self.ip == 'localhost':
                     self._get_localhost_ip()  
             else:
-                print('\nSwitch does not have eAPI enabled\n\n')
+                print('\nSwitch %s does not have eAPI enabled\n\n'%self.ip)
         else:
-            print('\nDevice %s is not an Arista switch\n\n'%ip)
-            
+            print('\nDevice %s is not an Arista switch\n\n'%ip)         
     def _get_localhost_ip(self):
         "Gets the IP addresses configured for management on the localhost, and adds to checked switches object"
         for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
             if 'unix' not in r1:
                 checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
-
     def _create_switch(self):
         "This command will create a jsonrpclib Server object for the switch"
         target_switch = Server('https://%s:%s@%s/command-api'%(self.username,self.password,self.ip))
         return(target_switch)
-
     def run_commands(self,commands):
         "This command will send the commands to the targeted switch and return the results"
         switch_response = self.server.runCmds(1,commands)
         return(switch_response)
-
     def add_mac(self,MAC):
         "Adds queried MAC addresses to Switch's MAC Entry attribute"
         add_code = True
@@ -117,19 +115,15 @@ class SwitchCon:
                 add_code = False
         if add_code:
             self.mac_entry.append(MAC)
-
     def _get_system_mac(self):
         "Gets the system MAC address for the switch"
         return(self.run_commands(['show version'])[0]['systemMacAddress'].replace(":",""))
-    
     def _get_virtual_mac(self):
         "Gets the virtual-router MAC address for the switch"
         return(self.run_commands(['show ip virtual-router'])[0]['virtualMac'].replace(":",""))
-
     def _get_hostname(self):
         "Gets the hostname for the switch"
         return(self.run_commands(['show hostname'])[0]['hostname'])
-
     def _add_lldp_neighbors(self):
         "Gets LLDP neighbors on switch and adds to the lldp_neighbors attribute"
         dict_lldp = {}
@@ -145,7 +139,6 @@ class SwitchCon:
                             a_vend = False
                         dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router'],'Arista':a_vend}
         return(dict_lldp)
-
     def get_lldp_br(self):
         "Returns a dictionary of LLDP neighbors that are bridges and routers"
         tmp_dict = {}
@@ -357,7 +350,10 @@ def main(mac_to_search):
         new_mac_search = mac_to_search
     #Create a Switch Object for the localhost and add it to the all_switches list object
     current_switch = SwitchCon('localhost',switch_username,switch_password,s_vend=True)
-    all_switches.append(current_switch)
+    if current_switch.eapi:
+        all_switches.append(current_switch)
+    else:
+        exit()
     #Perform a query on the switch for MAC query string
     query_switch(current_switch,new_mac_search)
     #Iterate through mac entries found
