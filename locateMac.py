@@ -136,12 +136,14 @@ class SwitchCon:
         lldp_results = self.run_commands(['show lldp neighbors detail'])[0]['lldpNeighbors']
         for r1 in lldp_results:
             if lldp_results[r1]['lldpNeighborInfo']:
-                l_base = lldp_results[r1]['lldpNeighborInfo'][0]
-                if 'Arista' in l_base['systemDescription']:
-                    a_vend = True
-                else:
-                    a_vend = False
-                dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router'],'Arista':a_vend}
+                if len(lldp_results[r1]['lldpNeighborInfo']) > 0:
+                    l_base = lldp_results[r1]['lldpNeighborInfo'][0]
+                    if 'systemCapabilities' in l_base:
+                        if 'Arista' in l_base['systemDescription']:
+                            a_vend = True
+                        else:
+                            a_vend = False
+                        dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'bridge':l_base['systemCapabilities']['bridge'],'router':l_base['systemCapabilities']['router'],'Arista':a_vend}
         return(dict_lldp)
 
     def get_lldp_br(self):
