@@ -1,4 +1,12 @@
 # Locate a MAC Address within the environment
+#### Version 3.0
+Updated outputs that consolidates non-eAPI enabled Arista switches to the end.  If the script hangs on the output of the following for a couple of minutes.
+
+    LM-SW04#findmac b660
+    Searching....
+
+This is the script waiting for the timeout to occur on the eAPI call.  This can be escaped sooner by performing a `ctrl-c` on the keyboard.  This will skip the current non-eapi switch and continue on.
+
 #### Version 2.4
 Cleaned up some un-used code. 
 ##### Fixes
