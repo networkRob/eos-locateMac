@@ -43,7 +43,7 @@ INSTALLATION
     switch(config)# alias findmac bash /mnt/flash/locateMac.py %1
 """
 __author__ = 'rmartin'
-__version__ = 3.0
+__version__ = 3.1
 from jsonrpclib import Server
 from sys import argv, exit
 
@@ -65,7 +65,6 @@ class MACHOSTS:
     def __init__(self,mac,vlan,switch,intf):
         self.mac = mac
         self.status = False
-        self.eapi = False
         self.switch = switch
         self.interface = intf
         self.vlan = vlan
@@ -90,7 +89,11 @@ class SwitchCon:
             if self.STATUS:
                 self.lldp_neighbors = self._add_lldp_neighbors()
                 self.system_mac = self._get_system_mac()
-                self.virtual_mac = self._get_virtual_mac()
+                #Added try statement to catch if virtual device doesn't support virtual-router
+                try:
+                    self.virtual_mac = self._get_virtual_mac()
+                except:
+                    self.virtual_mac = '00000000000'
                 if self.ip == 'localhost':
                     self._get_localhost_ip()  
         else:
@@ -100,8 +103,7 @@ class SwitchCon:
         "Gets the IP addresses configured for management on the localhost, and adds to checked switches object"
         for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
             if 'unix' not in r1:
-                checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
-         
+                checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')]) 
 
     def _create_switch(self):
         "This command will create a jsonrpclib Server object for the switch"
@@ -179,7 +181,7 @@ def print_output(data):
         if r1.status:
             print('%s\t%s\t%s\t%s\tFound'%(format_MAC(r1.mac),r1.switch,r1.interface,print_vlans)).expandtabs(20)
         else:
-            print('%s\t%s\t%s\t%s\tNot Found'%(format_MAC(r1.mac),r1.switch,r1.interface[0],print_vlans)).expandtabs(20)
+            print('%s\t%s\t%s\t%s\t*Not Found'%(format_MAC(r1.mac),r1.switch,r1.interface[0],print_vlans)).expandtabs(20)
     print
 
 def check_all_macs(mac):
@@ -382,6 +384,10 @@ def main(mac_to_search):
         for r1 in non_eapi:
             print("Switch IP: %s"%r1.ip)
     print_output(all_macs)
+    for r1 in all_macs:
+        if not r1.status:
+            print("*Last Switch and Port to report this MAC Address. Check device connected to this port.\n")
+            break
 
 #==========================================
 # End Main Function

@@ -1,4 +1,11 @@
 # Locate a MAC Address within the environment
+#### Version 3.1
+Updated Setup Documentation to take into account enviroments with VRFs enabled.
+##### Features
+- Ability to query local switch and remote switches that have VRFs enabled. (See updated setup documentation)
+- Added description for MAC addresses with `Not Found` status results
+##### Fixes
+- Added in logic to prevent the script from failing when it tries to add a switch not capable of `virtual-router`.
 #### Version 3.0
 Updated outputs that consolidates non-eAPI enabled Arista switches to the end.  If the script hangs on the output of the following for a couple of minutes.
 
@@ -35,21 +42,47 @@ In this version, a queried MAC address will return a 'Found' result for ports th
 This script will query the local switch and any remote switches (if necessary) to locate the queried MAC address.  If a match is found, it will report back the Switch, MAC, VLAN, and Interface.
 
 
-### Setup
+## Setup
+
+#### All Environments
 This script will need to be copied to any switch that this command will be sourced from.  Does not need to be copied on any remote switches that will be queried.
 
     /mnt/flash
 
+#### Non-VRF Enabled Environments
 Each device within the environment will need to have eAPI access configured.  This can be done with the following commands.  Within EOS, enter the following commands:
 
-    # config
-    (config)# management api http-commands
-    (config)# no shut
-    (config)# end
+    Arista#config
+    Arista(config)#management api http-commands
+    Arista(config)#no shut
+    Arista(config)#end
 
 On each device that will have this script ran from, within EOS, enter the following commands:
 
-    # config
-    (config)# alias findmac bash /mnt/flash/locateMac.py %1
-    (config)# end
-    # write
+    Arista#config
+    Arista(config)#alias findmac bash /mnt/flash/locateMac.py %1
+    Arista(config)#end
+    Arista#write
+
+#### VRF Enabled Environments
+If VRFs are utilized within the environment, each device will need to have eAPI access configured for the management VRF.  In the examples below, the name of the VRF is `MGMT`.  If it differs in the environment, replace `MGMT` with the name of the VRF.
+
+This can be done with the following commands.  Within EOS, enter the following commands:
+
+    Arista#config
+    Arista(config)#management api http-commands
+    Arista(config)#no shut
+    Arista(config)#vrf MGMT
+    Arista(config)#no shut
+    Arista(config)#end
+
+If the switches within the evironment utilizes a VRF for the `ma1` interface, the following configuration will need to be ran on all switches within the environment.  
+
+    Arista(config)#lldp management-address vrf MGMT
+
+On each device that will have this script ran from, within EOS, enter the following commands: (If the VRF name is different replace `MGMT` in the section from `ns-MGMT` with the name of the VRF).
+
+    Arista#config
+    Arista(config)#alias findmac bash sudo ip netns exec ns-MGMT /mnt/flash/locateMac.py %1
+    Arista(config)#end
+    Arista#write
