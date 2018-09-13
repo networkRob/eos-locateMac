@@ -43,7 +43,7 @@ INSTALLATION
     switch(config)# alias findmac bash /mnt/flash/locateMac.py %1
 """
 __author__ = 'rmartin'
-__version__ = 2.4
+__version__ = 3.0
 from jsonrpclib import Server
 from sys import argv, exit
 
@@ -53,6 +53,8 @@ checked_switches = []
 search_devices = []
 all_macs = []
 all_switches = []
+non_eapi = []
+
 
 #==========================================
 # Begin Class Declaration
@@ -63,6 +65,7 @@ class MACHOSTS:
     def __init__(self,mac,vlan,switch,intf):
         self.mac = mac
         self.status = False
+        self.eapi = False
         self.switch = switch
         self.interface = intf
         self.vlan = vlan
@@ -90,27 +93,28 @@ class SwitchCon:
                 self.virtual_mac = self._get_virtual_mac()
                 if self.ip == 'localhost':
                     self._get_localhost_ip()  
-            else:
-                print('\nSwitch %s does not have eAPI enabled\n\n'%self.ip)
         else:
-            print('\nDevice %s is not an Arista switch\n\n'%ip)         
-    
+            print('Device %s is not an Arista switch'%ip)         
+
     def _get_localhost_ip(self):
         "Gets the IP addresses configured for management on the localhost, and adds to checked switches object"
-        for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
-            if 'unix' not in r1:
-                checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
-    
+        try:
+            for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
+                if 'unix' not in r1:
+                    checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
+        except KeyboardInterrupt:
+            print("eAPI not enabled")  
+
     def _create_switch(self):
         "This command will create a jsonrpclib Server object for the switch"
         target_switch = Server('https://%s:%s@%s/command-api'%(self.username,self.password,self.ip))
         return(target_switch)
-    
+
     def run_commands(self,commands):
         "This command will send the commands to the targeted switch and return the results"
         switch_response = self.server.runCmds(1,commands)
         return(switch_response)
-    
+
     def add_mac(self,MAC):
         "Adds queried MAC addresses to Switch's MAC Entry attribute"
         add_code = True
@@ -119,19 +123,19 @@ class SwitchCon:
                 add_code = False
         if add_code:
             self.mac_entry.append(MAC) 
-    
+
     def _get_system_mac(self):
         "Gets the system MAC address for the switch"
         return(self.run_commands(['show version'])[0]['systemMacAddress'].replace(":",""))
-    
+
     def _get_virtual_mac(self):
         "Gets the virtual-router MAC address for the switch"
         return(self.run_commands(['show ip virtual-router'])[0]['virtualMac'].replace(":",""))
-    
+
     def _get_hostname(self):
         "Gets the hostname for the switch"
         return(self.run_commands(['show hostname'])[0]['hostname'])
-    
+
     def _add_lldp_neighbors(self):
         "Gets LLDP neighbors on switch and adds to the lldp_neighbors attribute"
         dict_lldp = {}
@@ -143,9 +147,7 @@ class SwitchCon:
                     if 'systemDescription'in l_base:
                         if 'Arista' in l_base['systemDescription']:
                             a_vend = True
-                        else:
-                            a_vend = False
-                        dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'Arista':a_vend}
+                            dict_lldp[r1] = {'neighbor':l_base['systemName'],'ip':l_base['managementAddresses'][0]['address'],'remote':l_base['neighborInterfaceInfo']['interfaceId'],'Arista':a_vend}
         return(dict_lldp)
             
 
@@ -341,6 +343,7 @@ def search_results(switch_object):
 
 def main(mac_to_search):
     "Main script to get started"
+    print("Searching....")
     #Reformat MAC search string
     mac_to_search = mac_to_search.lower()
     if '.' in mac_to_search:
@@ -367,9 +370,16 @@ def main(mac_to_search):
                 rem_ven = r1[rem_ip]
                 remote_switch = SwitchCon(rem_ip,switch_username,switch_password,s_vend=rem_ven)
                 all_switches.append(remote_switch)
-                if remote_switch.sw_arista:
+                if remote_switch.sw_arista and remote_switch.eapi:
                     query_switch(remote_switch,new_mac_search)
                     search_results(remote_switch)
+    for r1 in all_switches:
+        if r1.eapi == False and r1.sw_arista == True:
+            non_eapi.append(r1)
+    if len(non_eapi) > 0:
+        print("\nUnable to access the following Arista Switches, Results maybe incomplete. Please enable eAPI on them...")
+        for r1 in non_eapi:
+            print("Switch IP: %s"%r1.ip)
     print_output(all_macs)
 
 #==========================================
