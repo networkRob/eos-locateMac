@@ -98,12 +98,10 @@ class SwitchCon:
 
     def _get_localhost_ip(self):
         "Gets the IP addresses configured for management on the localhost, and adds to checked switches object"
-        try:
-            for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
-                if 'unix' not in r1:
-                    checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
-        except KeyboardInterrupt:
-            print("eAPI not enabled")  
+        for r1 in self.run_commands(['show management api http-commands'])[0]['urls']:
+            if 'unix' not in r1:
+                checked_switches.append(r1[r1.find('//')+2:r1.rfind(':')])
+         
 
     def _create_switch(self):
         "This command will create a jsonrpclib Server object for the switch"
@@ -112,8 +110,11 @@ class SwitchCon:
 
     def run_commands(self,commands):
         "This command will send the commands to the targeted switch and return the results"
-        switch_response = self.server.runCmds(1,commands)
-        return(switch_response)
+        try:
+            switch_response = self.server.runCmds(1,commands)
+            return(switch_response)
+        except KeyboardInterrupt:
+            self.eapi = False
 
     def add_mac(self,MAC):
         "Adds queried MAC addresses to Switch's MAC Entry attribute"
