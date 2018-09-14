@@ -4,6 +4,16 @@ Updated Setup Documentation to take into account enviroments with VRFs enabled.
 ##### Features
 - Ability to query local switch and remote switches that have VRFs enabled. (See updated setup documentation)
 - Added description for MAC addresses with `Not Found` status results
+
+        Arista#findmac c52a
+        Searching....
+
+        MAC Address         Hostname            Interface           VLAN                Status
+        ------------------  ---------           ----------          ---------           ---------
+        00:0c:29:aa:c5:2a   7280-sw-01         Ethernet47          50                  *Not Found
+        
+        *Last Switch and Port to report this MAC Address. Check device connected to this port.
+
 ##### Fixes
 - Added in logic to prevent the script from failing when it tries to add a switch not capable of `virtual-router`.
 #### Version 3.0
