@@ -1,4 +1,6 @@
 # Locate a MAC Address within the environment
+#### Version 3.2
+Disabled SSL Verification where it would throw an error in 4.21.1F.
 #### Version 3.1
 Updated Setup Documentation to take into account enviroments with VRFs enabled.
 ##### Features
