@@ -43,9 +43,14 @@ INSTALLATION
     switch(config)# alias findmac bash /mnt/flash/locateMac.py %1
 """
 __author__ = 'rmartin'
-__version__ = 3.1
+__version__ = 3.2
 from jsonrpclib import Server
 from sys import argv, exit
+import os, ssl
+
+if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
+    getattr(ssl, '_create_unverified_context', None)): 
+    ssl._create_default_https_context = ssl._create_unverified_context
 
 switch_username = 'arista'
 switch_password = 'arista'
