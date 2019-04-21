@@ -52,7 +52,7 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
     getattr(ssl, '_create_unverified_context', None)): 
     ssl._create_default_https_context = ssl._create_unverified_context
 
-switch_username = 'arista'
+switch_username = 'admin'
 switch_password = 'arista'
 checked_switches = []
 search_devices = []
@@ -207,16 +207,23 @@ def check_all_mac_status(am):
 
 def check_system_mac(mac):
     for r1 in all_switches:
-        if mac == r1.system_mac:
+        if r1.system_mac and mac == r1.system_mac:
             return r1.hostname
-    else:
-        return None
+        else:
+            return None
 
 def check_virtual_mac(mac):
     "Checks virtual MACs for all queried switches"
     for r1 in all_switches:
-        if mac == r1.virtual_mac:
+        if r1.virtual_mac and mac == r1.virtual_mac:
             return r1.hostname
+        else:
+            return False
+
+def check_vxlan_interface(interface):
+    "Checks to see if mac address is from a VXLAN Interface"
+    if interface[0] == 'Vxlan1':
+        return True
     else:
         return False
 
@@ -284,6 +291,7 @@ def search_results(switch_object):
             #Check if MAC address is the switch's System or Virtual MACs
             check_system = check_system_mac(r1.mac)
             check_virtual = check_virtual_mac(r1.mac)
+            check_vxlan = check_vxlan_interface(r1.interface)
             if check_system:
                 r1.status = True
                 r1.switch = check_system
@@ -292,6 +300,8 @@ def search_results(switch_object):
                 r1.status = True
                 r1.switch = check_virtual
                 r1.interface = 'VIRTUAL MAC'
+            elif check_vxlan:
+                r1.interface = 'VXLAN'
             else:
                 #Iterate through switches intfs that has MAC associated with it
                 for r2 in r1.interface:
