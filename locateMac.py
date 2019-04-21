@@ -52,7 +52,7 @@ if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
     getattr(ssl, '_create_unverified_context', None)): 
     ssl._create_default_https_context = ssl._create_unverified_context
 
-switch_username = 'admin'
+switch_username = 'arista'
 switch_password = 'arista'
 checked_switches = []
 search_devices = []
